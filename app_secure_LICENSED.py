@@ -1,49 +1,54 @@
-# app_secure_LICENSED.py - WITH LOGIN + LICENSE KEY + EXPIRY - Restricts usage until paid
+# app_secure_LICENSED.py - WITH LOGIN + LICENSE KEY + EXPIRY - NO PRICING DISPLAY
 import pandas as pd
 import streamlit as st
 from datetime import datetime, timedelta
 import os, glob
 import numpy as np
 from io import BytesIO
-import hashlib
 
-# ============ LICENSE SYSTEM ============
-# Change these for each client - this is how you control who pays
-
-# OPTION 1: Simple password per client (easiest)
-# Give each company a different password: SPDC pays, you give them "SPDC-2026-XYZ"
-
+# ============ LICENSE SYSTEM - YOU CONTROL WHO PAYS ============
 VALID_LICENSES = {
-    # License Key : {client, expiry, plant_types_allowed}
     "SPDC-FLOW-2026": {"client": "SPDC", "expiry": "2026-12-31", "plants": ["Flow Station", "Rig (Drilling)", "Gas Plant", "Power Plant"]},
     "TOTAL-2026-GAS": {"client": "TotalEnergies", "expiry": "2026-11-30", "plants": ["Gas Plant"]},
-    "FIRSTEP-TRIAL": {"client": "First E&P", "expiry": "2026-11-15", "plants": ["Flow Station"]},  # Trial expires in 22 days
+    "FIRSTEP-TRIAL": {"client": "First E&P", "expiry": "2026-10-15", "plants": ["Flow Station"]},
     "DEMO-12345": {"client": "DEMO", "expiry": "2026-12-31", "plants": ["Flow Station", "Rig (Drilling)", "Gas Plant", "Power Plant"]},
-    # Add new clients here when they pay
-    # Format: LICENSE-KEY : client name, expiry YYYY-MM-DD
 }
 
-# Master admin password to manage all
 ADMIN_PASSWORD = "ChidoraAdmin2026!"
 
 def check_license(license_key):
     license_key = license_key.strip().upper()
     if license_key == ADMIN_PASSWORD:
         return {"valid": True, "client": "ADMIN", "expiry": "2099-12-31", "plants": ["Flow Station", "Rig (Drilling)", "Gas Plant", "Power Plant"], "is_admin": True}
-    
     if license_key in VALID_LICENSES:
         lic = VALID_LICENSES[license_key]
         try:
             expiry_date = datetime.strptime(lic["expiry"], "%Y-%m-%d")
             if datetime.now() > expiry_date:
-                return {"valid": False, "reason": f"License expired on {lic['expiry']}. Contact Chidora to renew."}
+                return {"valid": False, "reason": f"License expired on {lic['expiry']}. Contact support to renew."}
             return {"valid": True, **lic}
         except:
             return {"valid": False, "reason": "Invalid expiry format"}
-    return {"valid": False, "reason": "Invalid License Key. Contact Chidora to purchase."}
+    return {"valid": False, "reason": "Invalid License Key. Contact support."}
 
-# ============ LOGIN SCREEN ============
+# ============ LOGIN SCREEN - NO PRICING ============
 st.set_page_config(page_title="MAINTAIN-AI SECURE", layout="wide", page_icon="🔒")
+
+# CSS for grey vs green tick
+st.markdown("""
+<style>
+div[data-testid="stButton"] button[kind="primary"] {
+    background-color: #28a745 !important;
+    border-color: #28a745 !important;
+    color: white !important;
+}
+div[data-testid="stButton"] button[kind="secondary"] {
+    background-color: #6c757d !important;
+    border-color: #6c757d !important;
+    color: white !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False
@@ -51,99 +56,59 @@ if 'authenticated' not in st.session_state:
 
 if not st.session_state.authenticated:
     st.title("🔒 MAINTAIN-AI | Licensed Version")
-    st.markdown("**Enter your License Key to access your plant maintenance system**")
+    st.markdown("**Enter your License Key to access**")
     st.markdown("---")
     
-    col1, col2 = st.columns([2,1])
-    with col1:
-        st.info("💡 No license? Contact Chidora: +234 [your number] | Email: [your email] | Demo Key: DEMO-12345")
-        license_input = st.text_input("🔑 License Key:", type="password", placeholder="Enter your license key e.g., SPDC-FLOW-2026")
-        
-        if st.button("🔓 Unlock System", type="primary", use_container_width=True):
-            result = check_license(license_input)
-            if result["valid"]:
-                st.session_state.authenticated = True
-                st.session_state.client_info = result
-                st.session_state.license_key = license_input.strip().upper()
-                st.success(f"✅ Welcome {result['client']}! License valid till {result['expiry']}")
-                st.balloons()
-                st.rerun()
-            else:
-                st.error(f"❌ {result['reason']}")
+    st.info("💡 No license? Contact support for access.")
+    license_input = st.text_input("🔑 License Key:", type="password", placeholder="Enter license key")
     
-    with col2:
-        st.markdown("### Pricing:")
-        st.markdown("""
-        - **Flow Station**: ₦200k / year
-        - **Rig**: ₦300k / year
-        - **Gas Plant**: ₦300k / year
-        - **Power Plant**: ₦400k / year
-        - **All Plants**: ₦800k / year (Save ₦400k)
-        
-        Includes: PDF Work Orders, Auto-update, NUPRC Compliance
-        
-        **Contact to buy:**
-        Chidora - MAINTAIN-AI
-        """)
+    if st.button("🔓 Unlock System", type="primary", use_container_width=True):
+        result = check_license(license_input)
+        if result["valid"]:
+            st.session_state.authenticated = True
+            st.session_state.client_info = result
+            st.session_state.license_key = license_input.strip().upper()
+            st.success(f"✅ Welcome {result['client']}! Valid till {result['expiry']}")
+            st.balloons()
+            st.rerun()
+        else:
+            st.error(f"❌ {result['reason']}")
+    
+    st.caption("Demo Key for testing: DEMO-12345")
     st.stop()
 
 # ============ AUTHENTICATED - MAIN APP ============
 client_info = st.session_state.client_info
 is_admin = client_info.get("is_admin", False)
 
-# Header with license info
 st.sidebar.success(f"🔓 Licensed: {client_info['client']}")
-st.sidebar.caption(f"Key: {st.session_state.license_key[:6]}*** | Exp: {client_info['expiry']}")
+st.sidebar.caption(f"Exp: {client_info['expiry']}")
 if st.sidebar.button("🔒 Logout"):
     st.session_state.authenticated = False
     st.session_state.client_info = None
     st.rerun()
 
-st.title(f"🏭 MAINTAIN-AI | {client_info['client']} - Licensed")
+st.title(f"🏭 MAINTAIN-AI | {client_info['client']}")
+
 if is_admin:
-    st.warning("🔧 ADMIN MODE - You can see all clients")
-    st.markdown("**Active Licenses:**")
+    st.warning("🔧 ADMIN MODE")
     for key, info in VALID_LICENSES.items():
         exp = datetime.strptime(info["expiry"], "%Y-%m-%d")
         days_left = (exp - datetime.now()).days
-        status = "✅ Active" if days_left > 0 else "❌ Expired"
-        st.caption(f"{key} | {info['client']} | Exp: {info['expiry']} | {days_left} days left | {status}")
+        status = "✅" if days_left > 0 else "❌"
+        st.caption(f"{key} | {info['client']} | Exp: {info['expiry']} | {days_left}d left {status}")
 
-st.markdown(f"**Plant Types Allowed:** {', '.join(client_info['plants'])} | **Expiry:** {client_info['expiry']}")
-
-# Rest of your app (same as clean version but with plant restriction)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 xlsx_files = [f for f in glob.glob(os.path.join(SCRIPT_DIR, "*.xlsx")) if not os.path.basename(f).startswith("~$")]
 xlsx_names = [os.path.basename(f) for f in xlsx_files]
 
 PLANT_PROFILES = {
-    "Flow Station": {
-        "intervals": {"Separator Vessel": 180, "Crude Pump": 21, "Export Pump": 21, "Generator": 30, "Compressor": 30, "PSV": 365, "Default": 30},
-        "compliance": "NUPRC Upstream + HSE PTW/LOTO + HSE-003",
-        "critical": ["Export Pump", "Separator Vessel"],
-        "icon": "🛢️"
-    },
-    "Rig (Drilling)": {
-        "intervals": {"Top Drive": 14, "Mud Pump": 7, "Drawworks": 30, "BOP": 14, "Generator": 21, "Shaker": 21, "Crane": 90, "Default": 21},
-        "compliance": "NUPRC + DPR Rig Safety + API + Well Control",
-        "critical": ["BOP", "Mud Pump", "Top Drive"],
-        "icon": "🏗️"
-    },
-    "Gas Plant": {
-        "intervals": {"Gas Compressor": 30, "Dehydration Unit": 60, "Refrigeration": 90, "Flare System": 180, "Generator": 30, "Heat Exchanger": 90, "PSV": 180, "Default": 60},
-        "compliance": "NUPRC Midstream + NMDPRA + Process Safety + PSSR",
-        "critical": ["Gas Compressor", "Flare System", "Dehydration Unit"],
-        "icon": "🔥"
-    },
-    "Power Plant": {
-        "intervals": {"Gas Turbine": 90, "HRSG": 180, "Steam Turbine": 180, "BFP": 30, "Generator": 30, "Transformer": 180, "Cooling Tower": 90, "Default": 90},
-        "compliance": "NERC + NUPRC + OEM Siemens/GE + Arc Flash",
-        "critical": ["Gas Turbine", "BFP", "Steam Turbine"],
-        "icon": "⚡"
-    }
+    "Flow Station": {"intervals": {"Separator Vessel": 180, "Crude Pump": 21, "Export Pump": 21, "Generator": 30, "Compressor": 30, "PSV": 365, "Default": 30}, "compliance": "NUPRC Upstream + HSE PTW/LOTO + HSE-003", "critical": ["Export Pump", "Separator Vessel"], "icon": "🛢️"},
+    "Rig (Drilling)": {"intervals": {"Top Drive": 14, "Mud Pump": 7, "Drawworks": 30, "BOP": 14, "Generator": 21, "Shaker": 21, "Crane": 90, "Default": 21}, "compliance": "NUPRC + DPR Rig Safety + API + Well Control", "critical": ["BOP", "Mud Pump", "Top Drive"], "icon": "🏗️"},
+    "Gas Plant": {"intervals": {"Gas Compressor": 30, "Dehydration Unit": 60, "Refrigeration": 90, "Flare System": 180, "Generator": 30, "Heat Exchanger": 90, "PSV": 180, "Default": 60}, "compliance": "NUPRC Midstream + NMDPRA + Process Safety + PSSR", "critical": ["Gas Compressor", "Flare System", "Dehydration Unit"], "icon": "🔥"},
+    "Power Plant": {"intervals": {"Gas Turbine": 90, "HRSG": 180, "Steam Turbine": 180, "BFP": 30, "Generator": 30, "Transformer": 180, "Cooling Tower": 90, "Default": 90}, "compliance": "NERC + NUPRC + OEM Siemens/GE + Arc Flash", "critical": ["Gas Turbine", "BFP", "Steam Turbine"], "icon": "⚡"}
 }
 
-# Only allow plants this license permits
 allowed_plants = client_info["plants"]
 st.sidebar.header("🏭 Select Plant Type")
 plant_type = st.sidebar.selectbox("Plant:", allowed_plants, index=0)
@@ -175,7 +140,7 @@ else:
     file_name_label = selected
     df = pd.read_excel(full_path, engine='openpyxl')
 
-st.sidebar.header("⚙️ Intervals")
+st.sidebar.header("⚙️ Intervals (days) 21/30/180")
 intervals = {}
 for asset_type, default_days in profile['intervals'].items():
     intervals[asset_type] = st.sidebar.number_input(f"{asset_type}", min_value=7, max_value=730, value=default_days, key=f"lic_{plant_type}_{asset_type}")
@@ -231,7 +196,6 @@ def create_pdf(row, plant_type, profile, client_name, plant_location, prepared_b
     story.append(Paragraph(f"<b>{logo_text} - WORK ORDER</b>", styles['Heading1']))
     story.append(Spacer(1, 12))
     story.append(Paragraph(f"<b>Client:</b> {client_name} | <b>Plant:</b> {plant_type} | <b>Location:</b> {plant_location}", styles['Normal']))
-    story.append(Paragraph(f"<b>License:</b> {st.session_state.license_key[:6]}*** | <b>Valid till:</b> {client_info['expiry']}", styles['Normal']))
     story.append(Paragraph(f"<b>Date:</b> {datetime.now().strftime('%d/%m/%Y')} | <b>WO:</b> WO-{row['Asset Tag']}", styles['Normal']))
     story.append(Spacer(1, 12))
     data = [
@@ -257,12 +221,14 @@ def create_pdf(row, plant_type, profile, client_name, plant_location, prepared_b
     story.append(Paragraph(f"3. Service per {int(row['Interval_Days'])}d checklist", styles['Normal']))
     story.append(Paragraph("4. Test run + leak test", styles['Normal']))
     story.append(Spacer(1, 20))
-    story.append(Paragraph(f"Licensed to {client_name} | Prepared: {prepared_by}", styles['Normal']))
+    story.append(Paragraph(f"Prepared: {prepared_by}", styles['Normal']))
     doc.build(story)
     buffer.seek(0)
     return buffer
 
-st.header(f"{profile['icon']} {plant_type} - {len(latest)} Assets - Licensed to {client_info['client']}")
+st.header(f"{profile['icon']} {plant_type} - {len(latest)} Assets - {client_info['client']}")
+st.caption(f"File: {file_name_label} | Exp: {client_info['expiry']}")
+
 c1,c2,c3 = st.columns(3)
 c1.metric("Total", len(latest))
 c2.metric("🔴 Overdue", len(latest[latest['Rule_Status']=='OVERDUE']))
@@ -278,20 +244,28 @@ for _, row in latest.sort_values('Days Overdue By', ascending=False).iterrows():
             emoji = "🔴" if row['Rule_Status']=='OVERDUE' else "🟢"
             crit = "🔥 CRITICAL" if row['Is_Critical'] else ""
             st.markdown(f"**{emoji} {row['Asset Tag']}** - {row['Equipment']} {crit}")
-            st.caption(f"Last: {row['Last Service'].strftime('%d/%m/%Y') if pd.notna(row['Last Service']) else 'N/A'} | Overdue: {int(row['Days Overdue By'])}d | Next: {row['Next Service Due'].strftime('%d/%m/%Y') if pd.notna(row['Next Service Due']) else 'N/A'}")
+            st.caption(f"Last: {row['Last Service'].strftime('%d/%m/%Y') if pd.notna(row['Last Service']) else 'N/A'} | Overdue: {int(row['Days Overdue By'])}d")
         with col_b:
             st.caption(f"{row.get('Location','N/A')} | {row['Rule_Status']} | {profile['compliance']}")
         with col_c:
             pdf_buf = create_pdf(row, plant_type, profile, client_name, plant_location, prepared_by, logo_text)
             st.download_button("📄 PDF", pdf_buf, file_name=f"WO_{row['Asset Tag']}.pdf", mime="application/pdf", key=f"pdf_{row['Asset Tag']}", use_container_width=True)
         with col_d:
-            if st.button(f"✅ Serviced", key=f"serv_{row['Asset Tag']}", use_container_width=True):
+            # GREY when OVERDUE (not serviced), GREEN when OK (serviced)
+            if row['Rule_Status'] == 'OVERDUE':
+                btn_label = "⬜ Not Serviced"
+                btn_type = "secondary"
+            else:
+                btn_label = "✅ Serviced"
+                btn_type = "primary"
+            
+            if st.button(btn_label, key=f"serv_{row['Asset Tag']}", use_container_width=True, type=btn_type):
                 if full_path:
                     df_full = pd.read_excel(full_path, engine='openpyxl')
                     mask = df_full['Asset Tag'] == row['Asset Tag']
                     df_full.loc[mask, 'Last Service'] = datetime.now()
                     df_full.to_excel(full_path, index=False, engine='openpyxl')
-                    st.success(f"✅ {row['Asset Tag']} updated!")
+                    st.success(f"✅ {row['Asset Tag']} updated! Now GREEN!")
                     st.balloons()
                 else:
                     st.info("Download updated Excel")
