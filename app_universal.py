@@ -7,7 +7,7 @@ import numpy as np
 from io import BytesIO
 
 st.set_page_config(page_title="MAINTAIN-AI UNIVERSAL COMPLETE", layout="wide", page_icon="🏭")
-st.title("🏭 MAINTAIN-AI | UNIVERSAL + PDF Work Order (COMPLETE)")
+st.title("🏭 MAINTAIN-AI | UNIVERSAL + PDF Work Order")
 st.markdown("**Flow Station | Rig | Gas Plant | Power Plant → Full Dashboard + Hybrid AI + PDF**")
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
