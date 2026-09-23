@@ -16,8 +16,8 @@ import hashlib
 VALID_LICENSES = {
     # License Key : {client, expiry, plant_types_allowed}
     "SPDC-FLOW-2026": {"client": "SPDC", "expiry": "2026-12-31", "plants": ["Flow Station", "Rig (Drilling)", "Gas Plant", "Power Plant"]},
-    "TOTAL-2026-GAS": {"client": "TotalEnergies", "expiry": "2026-10-30", "plants": ["Gas Plant"]},
-    "FIRSTEP-TRIAL": {"client": "First E&P", "expiry": "2026-10-15", "plants": ["Flow Station"]},  # Trial expires in 22 days
+    "TOTAL-2026-GAS": {"client": "TotalEnergies", "expiry": "2026-11-30", "plants": ["Gas Plant"]},
+    "FIRSTEP-TRIAL": {"client": "First E&P", "expiry": "2026-11-15", "plants": ["Flow Station"]},  # Trial expires in 22 days
     "DEMO-12345": {"client": "DEMO", "expiry": "2026-12-31", "plants": ["Flow Station", "Rig (Drilling)", "Gas Plant", "Power Plant"]},
     # Add new clients here when they pay
     # Format: LICENSE-KEY : client name, expiry YYYY-MM-DD
