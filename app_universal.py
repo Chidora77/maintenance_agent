@@ -92,32 +92,23 @@ if st.sidebar.button("Logout", key="logout_btn_final_v2_unique"):
         pass
     st.rerun()
 
-# SEPARATED REFRESH SECTION - NO MIXING
+# CLEAN REFRESH - SINGLE MANUAL BUTTON - NO MIXING - ALWAYS CLICKABLE
 st.sidebar.markdown("---")
-st.sidebar.subheader("🔄 Refresh Controls")
+st.sidebar.subheader("🔄 Refresh")
 
-# MANUAL REFRESH - SEPARATE KEY
-if st.sidebar.button("🔄 Manual Refresh", use_container_width=True, key="manual_refresh_final_unique", help="Refreshes data, stays logged in"):
-    st.cache_data.clear()
+# Simple manual refresh - no cache clear confusion, just rerun with toast
+if st.sidebar.button("🔄 Refresh Data", use_container_width=True, key="refresh_manual_clickable_unique", type="primary", help="Click to refresh data - stays logged in"):
+    st.toast("Refreshing data...", icon="🔄")
+    # Clear any cached data
+    try:
+        st.cache_data.clear()
+    except:
+        pass
+    # Force rerun - stays logged in because license is in query_params
     st.rerun()
 
+st.sidebar.caption("✅ Click above to refresh - stays logged in")
 st.sidebar.markdown("---")
-# AUTO REFRESH - COMPLETELY SEPARATE KEYS
-auto_on = st.sidebar.toggle("Auto-refresh", value=False, key="auto_refresh_final_toggle_unique", help="Auto refresh without logout")
-auto_mins = st.sidebar.slider("Auto interval (mins)", 1, 60, 10, key="auto_interval_final_unique")
-
-if auto_on:
-    if 'last_refresh_final' not in st.session_state:
-        st.session_state.last_refresh_final = time.time()
-    elapsed = time.time() - st.session_state.last_refresh_final
-    if elapsed > auto_mins * 60:
-        st.session_state.last_refresh_final = time.time()
-        st.cache_data.clear()
-        st.rerun()
-    remaining = max(0, int(auto_mins*60 - elapsed))
-    st.sidebar.caption(f"Auto in {remaining}s - stays logged in ✅")
-else:
-    st.sidebar.caption("Auto-refresh OFF")
 
 st.title(f"MAINTAIN-AI | {client_info['client']}")
 
