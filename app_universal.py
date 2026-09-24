@@ -135,6 +135,13 @@ st.sidebar.markdown("---")
 
 st.title(f"MAINTAIN-AI | {client_info['client']}")
 
+# SHOW LAST SPREADSHEET UPDATE VERIFICATION AT TOP
+if 'last_file_updates' in st.session_state and st.session_state.last_file_updates:
+    st.info("📊 **Last Spreadsheet Updates (Immediate Verification):**")
+    for asset_tag, info in list(st.session_state.last_file_updates.items())[-3:]:  # Show last 3
+        st.caption(f"✅ {asset_tag}: Written {info['written']} | Verified in file: {info['verified']} | File: {info['file']} | Modified: {info['mtime']}")
+
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 xlsx_files = [f for f in glob.glob(os.path.join(SCRIPT_DIR, "*.xlsx")) if not os.path.basename(f).startswith("~$")]
 xlsx_names = [os.path.basename(f) for f in xlsx_files]
@@ -457,19 +464,55 @@ for _, row in latest.sort_values('Days Overdue By', ascending=False).iterrows():
         with col_d:
             if is_overdue or is_amber:
                 if st.button(f"❌ Not Serviced", key=f"serv_{row['Asset Tag']}_{plant_type}_final_unique", use_container_width=True):
-                    now = datetime.now()
-                    st.session_state.serviced_assets[row['Asset Tag']] = now
+                    # FIXED DATE ISSUE: Use date only (no time, no UTC shift)
+                    now_dt = datetime.now()
+                    today_date_only = now_dt.date()  # Fix: date only, avoids UTC timezone wrong date in Excel
+                    now_for_file = pd.to_datetime(today_date_only)  # Convert to pandas datetime for Excel
+                    st.session_state.serviced_assets[row['Asset Tag']] = now_dt
+                    
+                    # Track update for verification display
+                    file_update_msg = ""
                     if full_path:
                         try:
                             df_full = pd.read_excel(full_path, engine='openpyxl')
                             mask = df_full['Asset Tag'] == row['Asset Tag']
-                            df_full.loc[mask, 'Last Service'] = now
+                            # FIXED: Write date only, not datetime with time
+                            df_full.loc[mask, 'Last Service'] = now_for_file
                             if 'Date' in df_full.columns:
-                                df_full.loc[mask, 'Date'] = now
+                                df_full.loc[mask, 'Date'] = now_for_file
                             df_full.to_excel(full_path, index=False, engine='openpyxl')
+                            
+                            # VERIFY IMMEDIATELY: Read back file to confirm
+                            df_verify = pd.read_excel(full_path, engine='openpyxl')
+                            verified_row = df_verify[df_verify['Asset Tag'] == row['Asset Tag']]
+                            if not verified_row.empty:
+                                verified_date = verified_row['Last Service'].iloc[0]
+                                # Get file modification time
+                                import os as os_mod
+                                mtime = os_mod.path.getmtime(full_path)
+                                mtime_str = datetime.fromtimestamp(mtime).strftime("%d/%m/%Y %H:%M:%S")
+                                # Store in session for display at top
+                                if 'last_file_updates' not in st.session_state:
+                                    st.session_state.last_file_updates = {}
+                                st.session_state.last_file_updates[row['Asset Tag']] = {
+                                    'file': file_name_label,
+                                    'written': today_date_only.strftime("%d/%m/%Y"),
+                                    'verified': str(verified_date),
+                                    'mtime': mtime_str,
+                                    'path': full_path
+                                }
+                                file_update_msg = f" | File: {file_name_label} updated at {mtime_str} - Verified: {verified_date}"
+                                st.toast(f"Spreadsheet updated: {verified_date} in {file_name_label}", icon="✅")
+                            else:
+                                file_update_msg = f" | File {file_name_label} saved but asset not found on verify"
                         except Exception as e:
-                            st.error(f"File update failed: {e}")
-                    st.success(f"✅ {row['Asset Tag']} marked TODAY - Now 🟢 GREEN!")
+                            st.error(f"File update failed: {e} - Path: {full_path}")
+                            file_update_msg = f" | File update ERROR: {e}"
+                    else:
+                        file_update_msg = " | No file path (uploaded file mode) - only session updated"
+                        st.toast("Session updated (upload mode - download updated file)", icon="⚠️")
+                    
+                    st.success(f"✅ {row['Asset Tag']} marked {today_date_only.strftime('%d/%m/%Y')} - Now 🟢 GREEN!{file_update_msg}")
                     st.balloons()
                     st.rerun()
             else:
@@ -477,6 +520,8 @@ for _, row in latest.sort_values('Days Overdue By', ascending=False).iterrows():
                 if st.button(f"↩️ Undo", key=f"undo_{row['Asset Tag']}_{plant_type}_final_unique", use_container_width=True):
                     if row['Asset Tag'] in st.session_state.serviced_assets:
                         del st.session_state.serviced_assets[row['Asset Tag']]
+                    if 'last_file_updates' in st.session_state and row['Asset Tag'] in st.session_state.last_file_updates:
+                        del st.session_state.last_file_updates[row['Asset Tag']]
                     st.rerun()
 
 st.success(f"✅ {plant_type}: 🔴 {len(latest[latest['Days Overdue By']>0])} Red | 🟡 {len(latest[(latest['Days Overdue By'] >= -7) & (latest['Days Overdue By'] <=0)])} Amber | 🟢 {len(latest[latest['Days Overdue By']<-7])} Green")
